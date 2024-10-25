@@ -1,26 +1,32 @@
--- Part 2 Question 2: Cats Don’t Like Needles
+-- Part 2 Question 2: Reorder procedures for cat appointments
 
--- Reorder the procedures for cat appointments on or after November 1, 2024
+-- Step 1: Find all appointments for cats on or after November 1, 2024
 WITH CatAppointments AS (
-    -- Find appointments for cats on or after November 1, 2024
-    SELECT a.appointment_id
-    FROM appointments a
-    JOIN patients p ON a.patient_id = p.patient_id
-    WHERE p.species = 'cat' AND a.appointment_date >= '2024-11-01'
+    SELECT a.a_id
+    FROM Appointment a
+    JOIN Patient p ON a.p_id = p.p_id
+    WHERE p.species = 'cat' AND a.scheduled_date >= '2024-11-01'
 ),
+
+-- Step 2: Generate unique new pr_order values for each procedure
 OrderedProcedures AS (
-    -- Separate 'blood work' procedures and other procedures
-    SELECT p.procedure_id, p.appointment_id, p.procedure_type,
-           ROW_NUMBER() OVER (PARTITION BY p.appointment_id 
-                              ORDER BY CASE 
-                                           WHEN p.procedure_type = 'blood work' THEN 1
-                                           ELSE 0
-                                        END, p.procedure_order) AS new_order
-    FROM procedures p
-    JOIN CatAppointments ca ON p.appointment_id = ca.appointment_id
+    SELECT sp.a_id, sp.pr_id,
+           ROW_NUMBER() OVER (
+               PARTITION BY sp.a_id
+               ORDER BY CASE WHEN pr.name = 'blood work' THEN 2 ELSE 1 END, sp.pr_order
+           ) AS new_order
+    FROM ScheduledProcedure sp
+    JOIN Procedure pr ON sp.pr_id = pr.pr_id
+    JOIN CatAppointments ca ON sp.a_id = ca.a_id
 )
--- Update the procedure order for relevant appointments
-UPDATE procedures
-SET procedure_order = op.new_order
+
+-- Step 3: Temporarily set pr_order to a negative value to avoid conflicts
+UPDATE ScheduledProcedure
+SET pr_order = -pr_order
+WHERE a_id IN (SELECT a_id FROM CatAppointments);
+
+-- Step 4: Set pr_order to the correct new_order values from OrderedProcedures
+UPDATE ScheduledProcedure sp
+SET pr_order = op.new_order
 FROM OrderedProcedures op
-WHERE procedures.procedure_id = op.procedure_id;
+WHERE sp.a_id = op.a_id AND sp.pr_id = op.pr_id;

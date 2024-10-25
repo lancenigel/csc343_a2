@@ -26,19 +26,30 @@ CREATE TEMP TABLE ClientsToDelete AS
 
 -- Step 4: Delete scheduled procedures for patients belonging to clients who are about to be deleted
 DELETE FROM ScheduledProcedure
-WHERE a_id IN (SELECT a.a_id 
-               FROM Appointment a
-               JOIN Patient p ON a.p_id = p.p_id
-               WHERE p.c_id IN (SELECT c_id FROM ClientsToDelete));
+WHERE a_id IN (
+    SELECT a.a_id 
+    FROM Appointment a
+    JOIN Patient p ON a.p_id = p.p_id
+    WHERE p.c_id IN (SELECT c_id FROM ClientsToDelete)
+);
 
--- Step 5: Delete appointments for patients belonging to clients who are about to be deleted
+-- Step 5: **Delete from ScheduledProcedureStaff** before deleting appointments
+DELETE FROM ScheduledProcedureStaff
+WHERE a_id IN (
+    SELECT a.a_id 
+    FROM Appointment a
+    JOIN Patient p ON a.p_id = p.p_id
+    WHERE p.c_id IN (SELECT c_id FROM ClientsToDelete)
+);
+
+-- Step 6: Delete appointments for patients belonging to clients who are about to be deleted
 DELETE FROM Appointment
 WHERE p_id IN (SELECT p.p_id FROM Patient p WHERE p.c_id IN (SELECT c_id FROM ClientsToDelete));
 
--- Step 6: Delete pets belonging to clients who are about to be deleted
+-- Step 7: Delete pets belonging to clients who are about to be deleted
 DELETE FROM Patient
 WHERE c_id IN (SELECT c_id FROM ClientsToDelete);
 
--- Step 7: Delete the clients who have no pets or no recent appointments
+-- Step 8: Delete the clients who have no pets or no recent appointments
 DELETE FROM Client
 WHERE c_id IN (SELECT c_id FROM ClientsToDelete);

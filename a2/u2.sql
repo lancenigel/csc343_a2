@@ -6,10 +6,11 @@ WITH CatAppointments AS (
     FROM Appointment a
     JOIN Patient p ON a.p_id = p.p_id
     WHERE p.species = 'cat' AND a.scheduled_date >= '2024-11-01'
-),
+)
 
 -- Step 2: Generate unique new pr_order values for each procedure
-OrderedProcedures AS (
+-- Instead of using a CTE, create a temporary table for OrderedProcedures
+CREATE TEMP TABLE OrderedProcedures AS
     SELECT sp.a_id, sp.pr_id,
            ROW_NUMBER() OVER (
                PARTITION BY sp.a_id
@@ -17,8 +18,7 @@ OrderedProcedures AS (
            ) AS new_order
     FROM ScheduledProcedure sp
     JOIN Procedure pr ON sp.pr_id = pr.pr_id
-    JOIN CatAppointments ca ON sp.a_id = ca.a_id
-)
+    JOIN CatAppointments ca ON sp.a_id = ca.a_id;
 
 -- Step 3: Temporarily set pr_order to a large number (to avoid conflicts with existing small values)
 UPDATE ScheduledProcedure
@@ -30,3 +30,6 @@ UPDATE ScheduledProcedure sp
 SET pr_order = op.new_order
 FROM OrderedProcedures op
 WHERE sp.a_id = op.a_id AND sp.pr_id = op.pr_id;
+
+-- Drop the temporary table to clean up after the query
+DROP TABLE OrderedProcedures;

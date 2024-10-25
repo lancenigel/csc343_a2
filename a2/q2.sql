@@ -42,13 +42,17 @@ CREATE VIEW DaysWorked AS
     LEFT JOIN Appointment a ON sps.a_id = a.a_id
     GROUP BY e.e_id;
 
--- View 3: Average appointment length per employee
+-- View 3: Average appointment length per employee (fixed to aggregate time per appointment first)
 CREATE VIEW AppointmentLengths AS
     SELECT e.e_id AS e_id, 
-           COALESCE(AVG(a.end_time - a.start_time), INTERVAL '0 hours') AS avg_appointment_len
-    FROM Employee e
-    LEFT JOIN ScheduledProcedureStaff sps ON e.e_id = sps.e_id
-    LEFT JOIN Appointment a ON sps.a_id = a.a_id
+           COALESCE(AVG(appointment_time), INTERVAL '0 hours') AS avg_appointment_len
+    FROM (
+        SELECT e.e_id, a.a_id, (MAX(a.end_time) - MIN(a.start_time)) AS appointment_time
+        FROM Employee e
+        LEFT JOIN ScheduledProcedureStaff sps ON e.e_id = sps.e_id
+        LEFT JOIN Appointment a ON sps.a_id = a.a_id
+        GROUP BY e.e_id, a.a_id
+    ) AS AppointmentTimes
     GROUP BY e.e_id;
 
 -- View 4: Total distinct clients helped per employee

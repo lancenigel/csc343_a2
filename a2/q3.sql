@@ -26,7 +26,7 @@ CREATE VIEW RVTs AS
 -- Step 2: Calculate total hours worked per day for each vet tech
 CREATE VIEW DailyHours AS
     SELECT a.scheduled_by AS e_id, a.scheduled_date AS work_day, 
-           SUM(DISTINCT a.end_time - a.start_time) AS total_hours_worked
+           SUM(a.end_time - a.start_time) AS total_hours_worked
     FROM Appointment a
     JOIN RVTs r ON a.scheduled_by = r.e_id
     GROUP BY a.scheduled_by, a.scheduled_date;
@@ -45,7 +45,6 @@ CREATE VIEW WeeklyExhaustingDays AS
     GROUP BY e_id, (DATE_TRUNC('week', work_day + INTERVAL '1 day') - INTERVAL '1 day')
     HAVING COUNT(work_day) >= 2; -- At least two exhausting days per week
 
-
 -- Step 5: Find vet techs who had at least 3 weeks with two or more exhausting days
 CREATE VIEW OverworkedVetTechs AS
     SELECT e_id, COUNT(DISTINCT week_start) AS exhausting_weeks
@@ -58,10 +57,6 @@ INSERT INTO q3
 SELECT owt.e_id, 
        SUM(dh.total_hours_worked) AS time_worked
 FROM OverworkedVetTechs owt
-JOIN WeeklyExhaustingDays wed ON owt.e_id = wed.e_id
--- Join only on exhausting days, not entire weeks
-JOIN ExhaustingDays ed ON wed.e_id = ed.e_id AND DATE_TRUNC('week', ed.work_day) = wed.week_start
+JOIN ExhaustingDays ed ON owt.e_id = ed.e_id
 JOIN DailyHours dh ON ed.e_id = dh.e_id AND ed.work_day = dh.work_day
 GROUP BY owt.e_id;
-
-

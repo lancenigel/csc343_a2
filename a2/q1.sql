@@ -23,7 +23,7 @@ CREATE VIEW ActivePatients AS
     FROM Patient p
     JOIN Client c ON p.c_id = c.c_id
     JOIN Appointment a ON p.p_id = a.p_id
-    WHERE EXTRACT(YEAR FROM a.scheduled_date) >= EXTRACT(YEAR FROM CURRENT_DATE) - 2;
+    WHERE a.scheduled_date >= (CURRENT_DATE - INTERVAL '3 years')
 
 -- Step 2: Determine the first appointment year for each patient
 CREATE VIEW FirstAppointmentYear AS
@@ -42,7 +42,7 @@ CREATE VIEW YearlyDiagnosticCheck AS
     JOIN FirstAppointmentYear fa ON ap.p_id = fa.p_id
     WHERE pr.name = 'diagnostic testing'
     GROUP BY ap.p_id, ap.c_id, fa.first_appointment_year
-    HAVING COUNT(DISTINCT EXTRACT(YEAR FROM a.scheduled_date)) = EXTRACT(YEAR FROM CURRENT_DATE) - fa.first_appointment_year + 1;
+    HAVING COUNT(DISTINCT EXTRACT(YEAR FROM a.scheduled_date)) = EXTRACT(YEAR FROM CURRENT_DATE) - fa.first_appointment_year  -- Drop the "+1" to allow skipping this year.
 
 -- Step 4: Find patients who have not had diagnostic testing or have it scheduled but not yet completed this year
 CREATE VIEW PatientsWithoutCurrentOrScheduledDiagnosticTest AS
@@ -54,7 +54,7 @@ CREATE VIEW PatientsWithoutCurrentOrScheduledDiagnosticTest AS
     AND EXTRACT(YEAR FROM a.scheduled_date) = EXTRACT(YEAR FROM CURRENT_DATE)
     AND pr.name = 'diagnostic testing'
     WHERE sp.a_id IS NULL
-    OR (a.scheduled_date >= CURRENT_DATE AND pr.name = 'diagnostic testing');  -- Scheduled but not completed
+    OR (a.scheduled_date >= CURRENT_DATE AND pr.name ILIKE 'diagnostic testing')
 
 -- Insert the final result into q1
 INSERT INTO q1

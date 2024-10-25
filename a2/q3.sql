@@ -10,25 +10,26 @@ CREATE TABLE q3 (
 );
 
 -- Drop views for each intermediate step
-DROP VIEW IF EXISTS RVT CASCADE;
+DROP VIEW IF EXISTS RVTs CASCADE;
 DROP VIEW IF EXISTS DailyHours CASCADE;
 DROP VIEW IF EXISTS ExhaustingDays CASCADE;
 DROP VIEW IF EXISTS WeeklyExhaustingDays CASCADE;
 DROP VIEW IF EXISTS OverworkedVetTechs CASCADE;
 
 -- Step 1: Filter Vet Techs (RVTs)
-CREATE VIEW RVT AS
-    SELECT e.employee_id AS e_id
-    FROM employees e
-    WHERE e.role = 'RVT';
+CREATE VIEW RVTs AS
+    SELECT e.e_id
+    FROM Employee e
+    JOIN Qualification q ON e.e_id = q.e_id
+    WHERE q.qualification = 'RVT';
 
 -- Step 2: Calculate total hours worked per day for each vet tech
 CREATE VIEW DailyHours AS
-    SELECT a.employee_id AS e_id, DATE(a.appointment_date) AS work_day, 
-           SUM(a.end_time - a.start_time) AS total_hours_worked
-    FROM appointments a
-    JOIN RVT r ON a.employee_id = r.e_id
-    GROUP BY a.employee_id, DATE(a.appointment_date);
+    SELECT a.scheduled_by AS e_id, a.scheduled_date AS work_day, 
+           SUM(DISTINCT a.end_time - a.start_time) AS total_hours_worked
+    FROM Appointment a
+    JOIN RVTs r ON a.scheduled_by = r.e_id
+    GROUP BY a.scheduled_by, a.scheduled_date;
 
 -- Step 3: Find exhausting days (days with 8 or more hours worked)
 CREATE VIEW ExhaustingDays AS
@@ -51,10 +52,11 @@ CREATE VIEW OverworkedVetTechs AS
     GROUP BY e_id
     HAVING COUNT(DISTINCT week_start) >= 3; -- At least three weeks with exhausting days
 
--- Insert final result into q3
+-- Step 6: Calculate total hours worked only on qualifying exhausting days for overworked vet techs
 INSERT INTO q3
 SELECT owt.e_id, 
        SUM(dh.total_hours_worked) AS time_worked
 FROM OverworkedVetTechs owt
-JOIN DailyHours dh ON owt.e_id = dh.e_id
+JOIN WeeklyExhaustingDays wed ON owt.e_id = wed.e_id
+JOIN DailyHours dh ON wed.e_id = dh.e_id AND DATE_TRUNC('week', dh.work_day) = wed.week_start
 GROUP BY owt.e_id;

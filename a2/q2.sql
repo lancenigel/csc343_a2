@@ -28,63 +28,65 @@ DROP VIEW IF EXISTS SuppliesUsed CASCADE;
 
 -- View 1: Total appointments worked per employee
 CREATE VIEW EmployeeAppointments AS
-    SELECT e.employee_id AS e_id, COUNT(DISTINCT a.appointment_id) AS num_appointments
-    FROM employees e
-    LEFT JOIN appointments a ON e.employee_id = a.employee_id
-    GROUP BY e.employee_id;
+    SELECT e.e_id AS e_id, COUNT(DISTINCT a.a_id) AS num_appointments
+    FROM Employee e
+    LEFT JOIN Appointment a ON e.e_id = a.scheduled_by
+    GROUP BY e.e_id;
 
 -- View 2: Total distinct days worked per employee
 CREATE VIEW DaysWorked AS
-    SELECT e.employee_id AS e_id, COUNT(DISTINCT DATE(a.appointment_date)) AS days_worked
-    FROM employees e
-    LEFT JOIN appointments a ON e.employee_id = a.employee_id
-    GROUP BY e.employee_id;
+    SELECT e.e_id AS e_id, COUNT(DISTINCT a.scheduled_date) AS days_worked
+    FROM Employee e
+    LEFT JOIN Appointment a ON e.e_id = a.scheduled_by
+    GROUP BY e.e_id;
 
 -- View 3: Average appointment length per employee
 CREATE VIEW AppointmentLengths AS
-    SELECT e.employee_id AS e_id, 
+    SELECT e.e_id AS e_id, 
            COALESCE(AVG(a.end_time - a.start_time), INTERVAL '0 hours') AS avg_appointment_len
-    FROM employees e
-    LEFT JOIN appointments a ON e.employee_id = a.employee_id
-    GROUP BY e.employee_id;
+    FROM Employee e
+    LEFT JOIN Appointment a ON e.e_id = a.scheduled_by
+    GROUP BY e.e_id;
 
 -- View 4: Total distinct clients helped per employee
 CREATE VIEW ClientsHelped AS
-    SELECT e.employee_id AS e_id, COUNT(DISTINCT a.client_id) AS clients_helped
-    FROM employees e
-    LEFT JOIN appointments a ON e.employee_id = a.employee_id
-    GROUP BY e.employee_id;
+    SELECT e.e_id AS e_id, COUNT(DISTINCT c.c_id) AS clients_helped
+    FROM Employee e
+    LEFT JOIN Appointment a ON e.e_id = a.scheduled_by
+    LEFT JOIN Patient p ON a.p_id = p.p_id
+    LEFT JOIN Client c ON p.c_id = c.c_id
+    GROUP BY e.e_id;
 
 -- View 5: Total distinct patients helped per employee
 CREATE VIEW PatientsHelped AS
-    SELECT e.employee_id AS e_id, COUNT(DISTINCT a.patient_id) AS patients_helped
-    FROM employees e
-    LEFT JOIN appointments a ON e.employee_id = a.employee_id
-    GROUP BY e.employee_id;
+    SELECT e.e_id AS e_id, COUNT(DISTINCT a.p_id) AS patients_helped
+    FROM Employee e
+    LEFT JOIN Appointment a ON e.e_id = a.scheduled_by
+    GROUP BY e.e_id;
 
 -- View 6: Total distinct coworkers worked with per employee
 CREATE VIEW CoworkersCount AS
-    SELECT e.employee_id AS e_id, 
-           COALESCE(COUNT(DISTINCT co.employee_id), 0) AS num_coworkers
-    FROM employees e
-    LEFT JOIN appointments a ON e.employee_id = a.employee_id
-    LEFT JOIN appointments co ON a.appointment_id = co.appointment_id AND e.employee_id != co.employee_id
-    GROUP BY e.employee_id;
+    SELECT e.e_id AS e_id, 
+           COALESCE(COUNT(DISTINCT co.e_id), 0) AS num_coworkers
+    FROM Employee e
+    LEFT JOIN Appointment a ON e.e_id = a.scheduled_by
+    LEFT JOIN ScheduledProcedureStaff co ON a.a_id = co.a_id AND e.e_id != co.e_id
+    GROUP BY e.e_id;
 
--- View 7: Total supplies used per employee
+-- View 7: Total supplies used per employee (supplies related to procedures performed by the employee)
 CREATE VIEW SuppliesUsed AS
-    SELECT e.employee_id AS e_id, 
-           COALESCE(SUM(s.quantity), 0) AS total_supplies
-    FROM employees e
-    LEFT JOIN appointments a ON e.employee_id = a.employee_id
-    LEFT JOIN supplies_used s ON a.appointment_id = s.appointment_id
-    GROUP BY e.employee_id;
+    SELECT e.e_id AS e_id, 
+           COALESCE(SUM(ps.quantity), 0) AS total_supplies
+    FROM Employee e
+    LEFT JOIN ScheduledProcedureStaff sps ON e.e_id = sps.e_id
+    LEFT JOIN ProcedureSupply ps ON sps.pr_id = ps.pr_id
+    GROUP BY e.e_id;
 
--- Insert the final results into q2
+-- Insert the final result into q2
 INSERT INTO q2
-SELECT e.employee_id AS e_id, 
+SELECT e.e_id AS e_id, 
        e.name, 
-       EXTRACT(YEAR FROM e.hire_date) AS hire_year,
+       EXTRACT(YEAR FROM e.start_date) AS hire_year,
        COALESCE(a.num_appointments, 0),
        COALESCE(dw.days_worked, 0),
        COALESCE(al.avg_appointment_len, INTERVAL '0 hours'),
@@ -92,11 +94,11 @@ SELECT e.employee_id AS e_id,
        COALESCE(ph.patients_helped, 0),
        COALESCE(cc.num_coworkers, 0),
        COALESCE(su.total_supplies, 0)
-FROM employees e
-LEFT JOIN EmployeeAppointments a ON e.employee_id = a.e_id
-LEFT JOIN DaysWorked dw ON e.employee_id = dw.e_id
-LEFT JOIN AppointmentLengths al ON e.employee_id = al.e_id
-LEFT JOIN ClientsHelped ch ON e.employee_id = ch.e_id
-LEFT JOIN PatientsHelped ph ON e.employee_id = ph.e_id
-LEFT JOIN CoworkersCount cc ON e.employee_id = cc.e_id
-LEFT JOIN SuppliesUsed su ON e.employee_id = su.e_id;
+FROM Employee e
+LEFT JOIN EmployeeAppointments a ON e.e_id = a.e_id
+LEFT JOIN DaysWorked dw ON e.e_id = dw.e_id
+LEFT JOIN AppointmentLengths al ON e.e_id = al.e_id
+LEFT JOIN ClientsHelped ch ON e.e_id = ch.e_id
+LEFT JOIN PatientsHelped ph ON e.e_id = ph.e_id
+LEFT JOIN CoworkersCount cc ON e.e_id = cc.e_id
+LEFT JOIN SuppliesUsed su ON e.e_id = su.e_id;

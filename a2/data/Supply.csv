@@ -1,0 +1,45 @@
+1,scalpel,93,t,t
+2,forceps,29,t,t
+3,scissors,100,t,t
+4,thermometer,56,f,t
+5,amoxicillin,33,f,f
+6,clavamox,103,f,f
+7,doxycycline,141,f,f
+8,cephalexin,95,f,f
+9,enrofloxacin,49,f,f
+10,carprofen,66,f,f
+11,meloxicam,28,f,f
+12,gabapentin,21,f,f
+13,tramadol,69,f,f
+14,firocoxib,105,f,f
+15,gauze,74,f,f
+16,adhesive bandages,27,f,f
+17,IV bag,117,t,f
+18,catheter,109,f,f
+19,syringe,27,f,f
+20,pet food (cat),108,f,f
+21,pet food (dog),57,f,f
+22,pet food (fish),132,f,f
+23,shampoo,32,f,f
+24,brush,57,f,f
+25,nail clippers,34,f,t
+26,vitamins,48,f,f
+27,joint supplements,125,f,f
+28,dental chews,37,f,f
+29,rabies vaccine vial,112,t,f
+30,gloves,120,t,f
+31,spay/neuter pack,32,t,f
+32,anesthetic,20,t,f
+33,micro-chip,38,t,f
+34,syringes with microchip applicator,43,t,f
+35,needle,54,t,f
+36,suturing kit,94,t,f
+37,beak trimming kit,150,t,f
+38,antibiotics,79,t,f
+39,flea comb,59,t,f
+40,topical treatment,138,t,f
+41,periodontal probe,86,t,f
+42,dental mirror,100,t,f
+43,extraction forceps,69,t,f
+44,bone cutter,56,t,f
+45,EDTA Tubes,24,t,f

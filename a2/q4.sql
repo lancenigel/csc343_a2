@@ -52,4 +52,15 @@ CREATE VIEW MentorSpecies AS
 CREATE VIEW MentorshipMatches AS
     SELECT m.mentee, e.mentor
     FROM MenteeSpecies m
-    LEFT JOIN MentorSpecies e ON m.species
+    LEFT JOIN MentorSpecies e ON m.species = e.species
+    GROUP BY m.mentee, e.mentor
+    HAVING COUNT(DISTINCT m.species) = (
+        SELECT COUNT(DISTINCT ms.species)
+        FROM MenteeSpecies ms
+        WHERE ms.mentee = m.mentee
+    );
+
+-- Insert the final result into q4
+INSERT INTO q4
+SELECT mentee, mentor
+FROM MentorshipMatches;

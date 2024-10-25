@@ -37,13 +37,14 @@ CREATE VIEW ExhaustingDays AS
     FROM DailyHours
     WHERE total_hours_worked >= INTERVAL '8 hours';
 
--- Step 4: Count exhausting days per week (Monday to Friday)
+-- Step 4: Count exhausting days per week (custom week start on Sunday)
 CREATE VIEW WeeklyExhaustingDays AS
-    SELECT e_id, DATE_TRUNC('week', work_day)::date AS week_start,
+    SELECT e_id, (DATE_TRUNC('week', work_day + INTERVAL '1 day') - INTERVAL '1 day')::date AS week_start,
            COUNT(work_day) AS exhausting_days_in_week
     FROM ExhaustingDays
-    GROUP BY e_id, DATE_TRUNC('week', work_day)
+    GROUP BY e_id, (DATE_TRUNC('week', work_day + INTERVAL '1 day') - INTERVAL '1 day')
     HAVING COUNT(work_day) >= 2; -- At least two exhausting days per week
+
 
 -- Step 5: Find vet techs who had at least 3 weeks with two or more exhausting days
 CREATE VIEW OverworkedVetTechs AS
@@ -58,5 +59,8 @@ SELECT owt.e_id,
        SUM(dh.total_hours_worked) AS time_worked
 FROM OverworkedVetTechs owt
 JOIN WeeklyExhaustingDays wed ON owt.e_id = wed.e_id
-JOIN DailyHours dh ON wed.e_id = dh.e_id AND DATE_TRUNC('week', dh.work_day) = wed.week_start
+JOIN ExhaustingDays ed ON ed.e_id = owt.e_id  -- Only count exhausting days
+JOIN DailyHours dh ON dh.e_id = ed.e_id AND dh.work_day = ed.work_day  -- Filter only for exhausting days
 GROUP BY owt.e_id;
+
+

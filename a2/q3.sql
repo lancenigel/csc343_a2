@@ -53,14 +53,15 @@ CREATE VIEW OverworkedVetTechs AS
     GROUP BY e_id
     HAVING COUNT(DISTINCT week_start) >= 3; -- At least three weeks with exhausting days
 
--- Step 6: Calculate total hours worked only on qualifying exhausting days for overworked vet techs
+-- Step 6: Calculate total hours worked only on exhausting days for overworked vet techs
 INSERT INTO q3
 SELECT owt.e_id, 
        SUM(dh.total_hours_worked) AS time_worked
 FROM OverworkedVetTechs owt
 JOIN WeeklyExhaustingDays wed ON owt.e_id = wed.e_id
-JOIN ExhaustingDays ed ON ed.e_id = owt.e_id  -- Only count exhausting days
-JOIN DailyHours dh ON dh.e_id = ed.e_id AND dh.work_day = ed.work_day  -- Filter only for exhausting days
+-- Join only on exhausting days, not entire weeks
+JOIN ExhaustingDays ed ON wed.e_id = ed.e_id AND DATE_TRUNC('week', ed.work_day) = wed.week_start
+JOIN DailyHours dh ON ed.e_id = dh.e_id AND ed.work_day = dh.work_day
 GROUP BY owt.e_id;
 
 

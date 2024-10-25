@@ -42,13 +42,13 @@ CREATE VIEW DaysWorked AS
     LEFT JOIN Appointment a ON sps.a_id = a.a_id
     GROUP BY e.e_id;
 
-
 -- View 3: Average appointment length per employee
 CREATE VIEW AppointmentLengths AS
     SELECT e.e_id AS e_id, 
            COALESCE(AVG(a.end_time - a.start_time), INTERVAL '0 hours') AS avg_appointment_len
     FROM Employee e
-    LEFT JOIN Appointment a ON e.e_id = a.scheduled_by
+    LEFT JOIN ScheduledProcedureStaff sps ON e.e_id = sps.e_id
+    LEFT JOIN Appointment a ON sps.a_id = a.a_id
     GROUP BY e.e_id;
 
 -- View 4: Total distinct clients helped per employee
@@ -69,7 +69,6 @@ CREATE VIEW PatientsHelped AS
     LEFT JOIN Appointment a ON sps.a_id = a.a_id
     GROUP BY e.e_id;
 
-
 -- View 6: Total distinct coworkers worked with per employee
 CREATE VIEW CoworkersCount AS
     SELECT e.e_id AS e_id, 
@@ -78,7 +77,6 @@ CREATE VIEW CoworkersCount AS
     LEFT JOIN ScheduledProcedureStaff sps ON e.e_id = sps.e_id
     LEFT JOIN ScheduledProcedureStaff co ON sps.a_id = co.a_id AND e.e_id != co.e_id  -- Exclude the employee themselves
     GROUP BY e.e_id;
-
 
 -- View 7: Total supplies used per employee (supplies related to procedures performed by the employee)
 CREATE VIEW SuppliesUsed AS

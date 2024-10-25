@@ -20,9 +20,9 @@ OrderedProcedures AS (
     JOIN CatAppointments ca ON sp.a_id = ca.a_id
 )
 
--- Step 3: Temporarily set pr_order to a negative value to avoid conflicts
+-- Step 3: Temporarily set pr_order to a large number (to avoid conflicts with existing small values)
 UPDATE ScheduledProcedure
-SET pr_order = -pr_order
+SET pr_order = pr_order + 1000
 WHERE a_id IN (SELECT a_id FROM CatAppointments);
 
 -- Step 4: Set pr_order to the correct new_order values from OrderedProcedures

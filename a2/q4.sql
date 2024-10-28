@@ -10,44 +10,72 @@ CREATE TABLE q4 (
 );
 
 -- Drop views for each intermediate step
+DROP VIEW IF EXISTS Mentees CASCADE;
+DROP VIEW IF EXISTS Mentors CASCADE;
 DROP VIEW IF EXISTS MenteeSpecies CASCADE;
 DROP VIEW IF EXISTS MentorSpecies CASCADE;
-DROP VIEW IF EXISTS MentorshipMatches CASCADE;
+DROP VIEW IF EXISTS MenteeMentorPairs CASCADE;
+DROP VIEW IF EXISTS MentorMenteeSpeciesMatch CASCADE;
 
--- Step 1: Mentees and the species they have worked with
+-- Step 1: Identify Mentees (employees hired in the last 90 days who have worked on at least one appointment)
+CREATE VIEW Mentees AS
+SELECT DISTINCT e.e_id AS mentee
+FROM Employee e
+JOIN ScheduledProcedureStaff sps ON e.e_id = sps.e_id
+WHERE e.start_date >= (CURRENT_DATE - INTERVAL '90 days')
+  AND e.start_date <= CURRENT_DATE;
+
+-- Step 2: Identify Mentors (employees hired at least 2 years ago)
+CREATE VIEW Mentors AS
+SELECT e.e_id AS mentor
+FROM Employee e
+WHERE e.start_date <= (CURRENT_DATE - INTERVAL '2 years');
+
+-- Step 3: Find species each mentee has worked with
 CREATE VIEW MenteeSpecies AS
-    SELECT DISTINCT e.e_id AS mentee, p.species
-    FROM Employee e
-    JOIN Appointment a ON e.e_id = a.scheduled_by
-    JOIN Patient p ON a.p_id = p.p_id
-    WHERE e.start_date >= '2024-09-01'; -- Filter mentees by hire date
+SELECT DISTINCT ms.mentee, p.species
+FROM Mentees ms
+JOIN ScheduledProcedureStaff sps ON ms.mentee = sps.e_id
+JOIN Appointment a ON sps.a_id = a.a_id
+JOIN Patient p ON a.p_id = p.p_id;
 
--- Step 2: Mentors and the species they have worked with
+-- Step 4: Find species each mentor has worked with
 CREATE VIEW MentorSpecies AS
-    SELECT DISTINCT e.e_id AS mentor, p.species
-    FROM Employee e
-    JOIN Appointment a ON e.e_id = a.scheduled_by
-    JOIN Patient p ON a.p_id = p.p_id
-    WHERE e.start_date < '2024-09-01'; -- Filter mentors by hire date
+SELECT DISTINCT me.mentor, p.species
+FROM Mentors me
+JOIN ScheduledProcedureStaff sps ON me.mentor = sps.e_id
+JOIN Appointment a ON sps.a_id = a.a_id
+JOIN Patient p ON a.p_id = p.p_id;
 
--- Step 3: Match mentees to mentors who have worked with the same species
--- Add DISTINCT and LEFT JOIN to prevent duplicate rows
-CREATE VIEW MentorshipMatches AS
-    -- Mentees who have matching mentors
-    SELECT DISTINCT m.mentee, e.mentor
-    FROM MenteeSpecies m
-    LEFT JOIN MentorSpecies e ON m.species = e.species
-    WHERE e.mentor IS NOT NULL -- Only include mentors with matching species
+-- Step 5: Generate all possible mentee-mentor pairs
+CREATE VIEW MenteeMentorPairs AS
+SELECT ms.mentee, me.mentor
+FROM Mentees ms
+CROSS JOIN Mentors me;
 
-    UNION
-    -- Mentees who do not have any matching mentors, return them with NULL for mentor
-    SELECT DISTINCT m.mentee, NULL AS mentor
-    FROM MenteeSpecies m
-    LEFT JOIN MentorSpecies e ON m.species = e.species
-    WHERE e.mentor IS NULL;
+-- Step 6: Check if mentors have worked with all species the mentee has
+CREATE VIEW MentorMenteeSpeciesMatch AS
+SELECT mmp.mentee, mmp.mentor,
+       COUNT(DISTINCT ms.species) AS mentee_species_count,
+       COUNT(DISTINCT CASE WHEN mns.species IS NOT NULL THEN ms.species END) AS matched_species_count
+FROM MenteeMentorPairs mmp
+JOIN MenteeSpecies ms ON mmp.mentee = ms.mentee
+LEFT JOIN MentorSpecies mns ON mmp.mentor = mns.mentor AND ms.species = mns.species
+GROUP BY mmp.mentee, mmp.mentor;
 
--- Step 4: Insert the final result into q4
+-- Step 7: Select mentors who have worked with all species of the mentee
 INSERT INTO q4
 SELECT mentee, mentor
-FROM MentorshipMatches
-ORDER BY mentee, mentor;
+FROM MentorMenteeSpeciesMatch
+WHERE matched_species_count = mentee_species_count
+
+UNION
+
+-- Include mentees with no matching mentors
+SELECT mentee, NULL AS mentor
+FROM Mentees
+WHERE mentee NOT IN (
+    SELECT mentee
+    FROM MentorMenteeSpeciesMatch
+    WHERE matched_species_count = mentee_species_count
+);
